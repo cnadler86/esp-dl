@@ -148,6 +148,14 @@ public:
     size_t psram;    /*!< PSRAM usage */
     size_t internal; /*!< internal RAM usage */
     size_t flash;    /*!< FLASH usage */
+
+    // Default constructor
+    mem_info() : psram(0), internal(0), flash(0) {}
+
+    // Constructor with three arguments
+    mem_info(size_t psram, size_t internal, size_t flash)
+        : psram(psram), internal(internal), flash(flash) {}
+
     mem_info operator+(const mem_info &other) const
     {
         return mem_info(psram + other.psram, internal + other.internal, flash + other.flash);
