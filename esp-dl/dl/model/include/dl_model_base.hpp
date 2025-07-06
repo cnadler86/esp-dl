@@ -296,7 +296,7 @@ public:
      *
      * @return Memory usage statistics on internal and PSRAM.
      */
-    std::map<std::string, mem_info> get_memory_info();
+    std::map<std::string, mem_info_t> get_memory_info();
 
     /**
      * @brief Get module info
@@ -343,6 +343,21 @@ public:
     virtual std::map<std::string, TensorBase *> &get_inputs();
 
     /**
+     * @brief Get the only input of model.
+     *
+     * @return TensorBase*
+     */
+    virtual TensorBase *get_input();
+
+    /**
+     * @brief Get input of model by name.
+     *
+     * @param name input name
+     * @return TensorBase*
+     */
+    virtual TensorBase *get_input(const std::string &name);
+
+    /**
      * @brief Get intermediate TensorBase of model
      * @note   When using memory manager, the content of TensorBase's data may be overwritten by the outputs of other
      * @param name The name of intermediate Tensor.
@@ -357,6 +372,29 @@ public:
      * @return The map of model output's name and TensorBase*
      */
     virtual std::map<std::string, TensorBase *> &get_outputs();
+
+    /**
+     * @brief Get the only output of model.
+     *
+     * @return TensorBase*
+     */
+    virtual TensorBase *get_output();
+
+    /**
+     * @brief Get output of model by name.
+     *
+     * @param name output name
+     * @return TensorBase*
+     */
+    virtual TensorBase *get_output(const std::string &name);
+
+    /**
+     * @brief Get the model's metadata prop
+     *
+     * @param key   The key of metadata prop
+     * @return The value of metadata prop
+     */
+    std::string get_metadata_prop(const std::string &key);
 
     /**
      * @brief Print the model.

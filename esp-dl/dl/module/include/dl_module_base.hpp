@@ -46,6 +46,12 @@ public:
      */
     virtual ~Module();
 
+#if CONFIG_SPIRAM
+    void *operator new(size_t size) { return heap_caps_malloc(size, MALLOC_CAP_SPIRAM); }
+
+    void operator delete(void *ptr) { heap_caps_free(ptr); }
+#endif
+
     /**
      * @brief Get the tensor index of this module's outputs
      *
@@ -123,7 +129,7 @@ public:
      * @param output  Output tensor
      * @param mode    Runtime mode
      */
-    virtual void run(TensorBase *input, TensorBase *output, runtime_mode_t mode = RUNTIME_MODE_AUTO);
+    virtual void run(TensorBase *input, TensorBase *output, runtime_mode_t mode = RUNTIME_MODE_SINGLE_CORE);
 
     /**
      * @brief Run the module by inputs and outputs
@@ -134,7 +140,7 @@ public:
      */
     virtual void run(std::vector<dl::TensorBase *> inputs,
                      std::vector<dl::TensorBase *> outputs,
-                     runtime_mode_t mode = RUNTIME_MODE_AUTO);
+                     runtime_mode_t mode = RUNTIME_MODE_SINGLE_CORE);
 };
 
 /**

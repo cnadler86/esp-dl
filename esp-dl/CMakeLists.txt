@@ -48,7 +48,7 @@ elseif(CONFIG_IDF_TARGET_ESP32P4)
 endif()
 
 set(requires        esp_mm
-                    esp_jpeg
+                    esp_new_jpeg
                     esp_driver_jpeg
                     esp_driver_ppa
                     esp_partition
@@ -58,13 +58,9 @@ set(requires        esp_mm
 
 idf_component_register(SRCS ${srcs} SRC_DIRS ${src_dirs} INCLUDE_DIRS ${include_dirs} REQUIRES ${requires})
 
-if(CONFIG_IDF_TARGET_ESP32P4)
-    add_prebuilt_library(fbs_model "fbs_loader/lib/esp32p4/libfbs_model.a")
-    target_link_libraries(${COMPONENT_LIB} PRIVATE fbs_model)
-elseif(CONFIG_IDF_TARGET_ESP32S3)
-    add_prebuilt_library(fbs_model "fbs_loader/lib/esp32s3/libfbs_model.a")
-    target_link_libraries(${COMPONENT_LIB} PRIVATE fbs_model)
-endif()
+component_compile_options(-ffast-math -O3 -Wno-error=format=-Wno-format)
+add_prebuilt_library(fbs_model fbs_loader/lib/${IDF_TARGET}/libfbs_model.a)
+target_link_libraries(${COMPONENT_LIB} PRIVATE fbs_model)
 
 component_compile_options(-ffast-math -frtti -O3 -Wno-error=format=-Wno-format)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-array-bounds

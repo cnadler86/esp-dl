@@ -39,6 +39,7 @@
 #include "dl_module_sqrt.hpp"
 #include "dl_module_squeeze.hpp"
 #include "dl_module_sub.hpp"
+#include "dl_module_swish.hpp"
 #include "dl_module_tanh.hpp"
 #include "dl_module_transpose.hpp"
 #include "dl_module_unsqueeze.hpp"
@@ -106,14 +107,14 @@ public:
     void register_dl_modules()
     {
         if (creators.empty()) {
-            this->register_module("Conv", Conv2D::deserialize);
+            this->register_module("Conv", Conv::deserialize);
             this->register_module("Add", Add::deserialize);
             this->register_module("Sub", Sub::deserialize);
             this->register_module("Mul", Mul::deserialize);
             this->register_module("Div", Div::deserialize);
-            this->register_module("Resize", Resize2D::deserialize);
-            this->register_module("GlobalAveragePool", GlobalAveragePool2D::deserialize);
-            this->register_module("AveragePool", AveragePool2D::deserialize);
+            this->register_module("Resize", Resize::deserialize);
+            this->register_module("GlobalAveragePool", GlobalAveragePool::deserialize);
+            this->register_module("AveragePool", AveragePool::deserialize);
             this->register_module("Concat", Concat::deserialize);
             this->register_module("Sigmoid", Sigmoid::deserialize);
             this->register_module("Tanh", Tanh::deserialize);
@@ -138,7 +139,7 @@ public:
             this->register_module("Squeeze", Squeeze::deserialize);
             this->register_module("Unsqueeze", Unsqueeze::deserialize);
             this->register_module("Softmax", Softmax::deserialize);
-            this->register_module("MaxPool", MaxPool2D::deserialize);
+            this->register_module("MaxPool", MaxPool::deserialize);
             this->register_module("Slice", Slice::deserialize);
             this->register_module("Pad", Pad::deserialize);
             this->register_module("MatMul", MatMul::deserialize);
@@ -152,6 +153,7 @@ public:
             this->register_module("LessOrEqual", LessOrEqual::deserialize);
             this->register_module("ReverseSequence", ReverseSequence::deserialize);
             this->register_module("Identity", Identity::deserialize);
+            this->register_module("Swish", Swish::deserialize);
         }
     }
 

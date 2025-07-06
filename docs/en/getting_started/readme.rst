@@ -13,7 +13,12 @@ Hardware Requirements
    - PC (Linux)
 
 .. note::
-   Some boards currently use Type C connectors. Make sure you use the right cable to connect the board!
+
+   - Some boards currently use Type C connectors. Make sure you use the right cable to connect the board!
+   - ESP-DL also supports ESP32, but its operator implementations are written in C, so the execution speed on ESP32 will be significantly slower than on ESP32-S3 or ESP32-P4. If needed, you can manually add compilation configuration files to your project—the function interface calls in ESP-DL remain identical. Note:
+
+      - When quantizing **ESP32** platform models using **ESP-PPQ**, set the target to ``c``.
+      - When deploying **ESP32** platform models using **ESP-DL**, set the project compilation target to ``esp32``.
 
 Software Requirements
 ----------------------------
@@ -53,7 +58,7 @@ Example Compile & Flash
    idf.py set-target [Soc]
    idf.py flash monitor -p [PORT]
 
-Replace ``[Soc]`` with the specific chip, currently supports ``esp32s3`` and ``esp32p4``.
+Replace ``[Soc]`` with the specific chip, currently supports ``esp32s3`` and ``esp32p4``. The example does not yet include the model and compilation configuration files for ``esp32``.
 
 Example Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -88,6 +93,8 @@ ESP-DL must use the proprietary format ``.espdl`` for model deployment. Deep lea
 - :doc:`How to quantize model </tutorials/how_to_quantize_model>`
 - :ref:`How to quantize MobileNetV2 <how_to_quantize_mobilenetv2>`
 - :ref:`How to quantize YOLO11n <how_to_quantize_yolo11n>`
+- :ref:`How to quantize YOLO11n-pose <how_to_quantize_yolo11n-pose>`
+- :ref:`How to quantize streaming model <how_to_quantize_streaming_model>`
 
 Model deployment
 ---------------------
@@ -96,3 +103,4 @@ ESP-DL provides a series of APIs to quickly load and run models. For more detail
 
 - :doc:`How to load & test & profile model </tutorials/how_to_load_test_profile_model>`
 - :doc:`How to run model </tutorials/how_to_run_model>`
+- :ref:`How to deploy streaming model <how_to_deploy_streaming_model>`

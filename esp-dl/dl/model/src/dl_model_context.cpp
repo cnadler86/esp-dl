@@ -112,7 +112,7 @@ int ModelContext::get_variable_index(const std::string &name)
     return -1;
 }
 
-size_t ModelContext::get_parameter_memory_size(mem_info &mem_info, bool copy)
+size_t ModelContext::get_parameter_memory_size(mem_info_t &mem_info, bool copy)
 {
     size_t total_size = 0;
     mem_info = {};
@@ -138,7 +138,7 @@ size_t ModelContext::get_parameter_memory_size(mem_info &mem_info, bool copy)
     return total_size;
 }
 
-size_t ModelContext::get_variable_memory_size(mem_info &mem_info)
+size_t ModelContext::get_variable_memory_size(mem_info_t &mem_info)
 {
     mem_info.flash = 0;
     mem_info.internal = m_internal_size;
@@ -152,7 +152,7 @@ bool ModelContext::root_alloc(size_t internal_size, size_t psram_size, int align
     m_internal_size = internal_size;
     m_psram_size = psram_size;
     if (m_psram_size > 0) {
-        m_psram_root = tool::malloc_aligned(alignment, m_psram_size, MALLOC_CAP_SPIRAM);
+        m_psram_root = tool::calloc_aligned(alignment, m_psram_size, 1, MALLOC_CAP_SPIRAM);
         if (!m_psram_root) {
             ESP_LOGE(TAG,
                      "Failed to alloc %.2fKB PSRAM, largest available PSRAM block size %.2fKB",
@@ -163,7 +163,7 @@ bool ModelContext::root_alloc(size_t internal_size, size_t psram_size, int align
     }
 
     if (m_internal_size > 0) {
-        m_internal_root = tool::malloc_aligned(alignment, m_internal_size, MALLOC_CAP_INTERNAL);
+        m_internal_root = tool::calloc_aligned(alignment, m_internal_size, 1, MALLOC_CAP_INTERNAL);
 
         if (!m_internal_root) {
             ESP_LOGE(TAG,

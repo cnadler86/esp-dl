@@ -16,9 +16,12 @@ jobs:
           directories: >
             esp-dl;
             models/coco_detect;
+            models/coco_pose;
             models/human_face_detect;
             models/human_face_recognition;
             models/pedestrian_detect;
             models/imagenet_cls;
+            models/cat_detect;
+            tools/dl_fft;
           namespace: "espressif"
           api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}

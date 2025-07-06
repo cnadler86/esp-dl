@@ -25,40 +25,23 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(bsp_sdcard_mount());
 #endif
 
-    dl::image::jpeg_img_t bill1_jpeg = {.data = (uint8_t *)bill1_jpg_start,
-                                        .width = 300,
-                                        .height = 300,
-                                        .data_size = (uint32_t)(bill1_jpg_end - bill1_jpg_start)};
-    dl::image::img_t bill1;
-    bill1.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB888;
-    sw_decode_jpeg(bill1_jpeg, bill1, true);
+    dl::image::jpeg_img_t bill1_jpeg = {.data = (void *)bill1_jpg_start,
+                                        .data_len = (size_t)(bill1_jpg_end - bill1_jpg_start)};
+    auto bill1 = sw_decode_jpeg(bill1_jpeg, dl::image::DL_IMAGE_PIX_TYPE_RGB888);
 
-    dl::image::jpeg_img_t bill2_jpeg = {.data = (uint8_t *)bill2_jpg_start,
-                                        .width = 300,
-                                        .height = 300,
-                                        .data_size = (uint32_t)(bill2_jpg_end - bill2_jpg_start)};
-    dl::image::img_t bill2;
-    bill2.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB888;
-    sw_decode_jpeg(bill2_jpeg, bill2, true);
+    dl::image::jpeg_img_t bill2_jpeg = {.data = (void *)bill2_jpg_start,
+                                        .data_len = (size_t)(bill2_jpg_end - bill2_jpg_start)};
+    auto bill2 = sw_decode_jpeg(bill2_jpeg, dl::image::DL_IMAGE_PIX_TYPE_RGB888);
 
-    dl::image::jpeg_img_t musk1_jpeg = {.data = (uint8_t *)musk1_jpg_start,
-                                        .width = 300,
-                                        .height = 300,
-                                        .data_size = (uint32_t)(musk1_jpg_end - musk1_jpg_start)};
-    dl::image::img_t musk1;
-    musk1.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB888;
-    sw_decode_jpeg(musk1_jpeg, musk1, true);
+    dl::image::jpeg_img_t musk1_jpeg = {.data = (void *)musk1_jpg_start,
+                                        .data_len = (size_t)(musk1_jpg_end - musk1_jpg_start)};
+    auto musk1 = sw_decode_jpeg(musk1_jpeg, dl::image::DL_IMAGE_PIX_TYPE_RGB888);
 
-    dl::image::jpeg_img_t musk2_jpeg = {.data = (uint8_t *)musk2_jpg_start,
-                                        .width = 300,
-                                        .height = 300,
-                                        .data_size = (uint32_t)(musk2_jpg_end - musk2_jpg_start)};
-    dl::image::img_t musk2;
-    musk2.pix_type = dl::image::DL_IMAGE_PIX_TYPE_RGB888;
-    sw_decode_jpeg(musk2_jpeg, musk2, true);
+    dl::image::jpeg_img_t musk2_jpeg = {.data = (void *)musk2_jpg_start,
+                                        .data_len = (size_t)(musk2_jpg_end - musk2_jpg_start)};
+    auto musk2 = sw_decode_jpeg(musk2_jpeg, dl::image::DL_IMAGE_PIX_TYPE_RGB888);
 
     HumanFaceDetect *human_face_detect = new HumanFaceDetect();
-    HumanFaceFeat *human_face_feat = new HumanFaceFeat();
 
     char db_path[64];
 #if CONFIG_DB_FATFS_FLASH
@@ -68,7 +51,7 @@ extern "C" void app_main(void)
 #else
     snprintf(db_path, sizeof(db_path), "%s/face.db", CONFIG_BSP_SD_MOUNT_POINT);
 #endif
-    auto human_face_recognizer = new HumanFaceRecognizer(human_face_feat, db_path);
+    auto human_face_recognizer = new HumanFaceRecognizer(db_path);
 
     human_face_recognizer->enroll(bill1, human_face_detect->run(bill1));
     human_face_recognizer->enroll(bill2, human_face_detect->run(bill2));
@@ -76,13 +59,12 @@ extern "C" void app_main(void)
 
     auto res = human_face_recognizer->recognize(musk2, human_face_detect->run(musk2));
     for (const auto &k : res) {
-        printf("id: %d, sim: %f", k.id, k.similarity);
+        ESP_LOGI(TAG, "id: %d, sim: %f", k.id, k.similarity);
     }
 
     human_face_recognizer->clear_all_feats();
 
     delete human_face_detect;
-    delete human_face_feat;
     delete human_face_recognizer;
 
     heap_caps_free(bill1.data);

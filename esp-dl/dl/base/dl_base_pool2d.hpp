@@ -69,34 +69,66 @@ std::vector<PoolArgsType<feature_t>> get_pool_args(TensorBase *output,
                                                    TensorBase *input,
                                                    const std::vector<int> &padding,
                                                    const std::vector<int> &filter_shape,
-                                                   const int stride_y,
-                                                   const int stride_x,
+                                                   const std::vector<int> &strides,
                                                    const runtime_mode_t runtime_mode = RUNTIME_MODE_AUTO)
 {
     PoolArgsType<feature_t> args;
-    // args.input_element = input->get_element_ptr(padding);
+
+    if (input->shape.size() == 3) {
+        args.input_height = 1;
+        args.input_width = input->shape[1];
+        args.input_channel = input->shape[2];
+
+        args.output_height = 1;
+        args.output_width = output->shape[1];
+        args.output_channel = output->shape[2];
+        args.filter_height = 1;
+        args.filter_width = filter_shape[0];
+
+        args.padding_h_head = 0;
+        args.padding_h_tail = 0;
+        args.padding_w_head = padding[0];
+        args.padding_w_tail = padding[1];
+
+        args.stride_x = strides[0];
+        args.stride_y = 1;
+    } else if (input->shape.size() == 4) {
+        args.input_height = input->shape[1];
+        args.input_width = input->shape[2];
+        args.input_channel = input->shape[3];
+
+        args.output_height = output->shape[1];
+        args.output_width = output->shape[2];
+        args.output_channel = output->shape[3];
+        args.filter_height = filter_shape[0];
+        args.filter_width = filter_shape[1];
+
+        args.padding_h_head = padding[0];
+        args.padding_h_tail = padding[1];
+        args.padding_w_head = padding[2];
+        args.padding_w_tail = padding[3];
+
+        args.stride_x = strides[1];
+        args.stride_y = strides[0];
+    } else {
+        ESP_LOGE(__FUNCTION__, "Do not support input shape.");
+        return {};
+    }
+
     args.input_element = (feature_t *)input->get_element_ptr();
-    args.input_height = input->shape[1];
-    args.input_width = input->shape[2];
-    args.input_channel = input->shape[3];
-    args.input_stride_y_offset = input->shape[2] * input->shape[3] * stride_y;
-    args.input_stride_x_offset = input->shape[3] * stride_x;
-    args.input_y_offset = input->shape[2] * input->shape[3];
-    args.input_x_offset = input->shape[3];
+    args.input_stride_y_offset = args.input_width * args.input_channel * args.stride_y;
+    args.input_stride_x_offset = args.input_channel * args.stride_x;
+    args.input_y_offset = args.input_width * args.input_channel;
+    args.input_x_offset = args.input_channel;
     args.input_y_offset_bytes = args.input_y_offset * sizeof(feature_t);
     args.input_x_offset_bytes = args.input_x_offset * sizeof(feature_t);
     args.input_exponent = input->exponent;
 
     args.output_element = (feature_t *)output->get_element_ptr();
-    args.output_height = output->shape[1];
-    args.output_width = output->shape[2];
-    args.output_channel = output->shape[3];
-    args.output_y_offset = output->shape[2] * output->shape[3];
-    args.output_x_offset = output->shape[3];
+    args.output_y_offset = args.output_width * args.output_channel;
+    args.output_x_offset = args.output_channel;
     args.output_exponent = output->exponent;
 
-    args.filter_height = filter_shape[0];
-    args.filter_width = filter_shape[1];
     args.avg_pool_area = args.filter_height * args.filter_width;
     int max_value = INT_MAX;
 #if CONFIG_ESP32P4_BOOST
@@ -117,26 +149,19 @@ std::vector<PoolArgsType<feature_t>> get_pool_args(TensorBase *output,
 
     // for ISA
     int u = 16 / sizeof(feature_t);
-    args.c_remainder = (input->shape[3] % u) * sizeof(feature_t);
+    args.c_remainder = (args.input_channel % u) * sizeof(feature_t);
 #if CONFIG_ESP32P4_BOOST
     args.avg_pool_area_inv = tool::round(1.f / (args.filter_height * args.filter_width) * (1 << (-args.pool_exponent)));
 #else
     args.avg_pool_area_inv = (1 << (-args.pool_exponent)) / (args.filter_height * args.filter_width);
 #endif
-    int c_div_x = input->shape[3] / u;
+    int c_div_x = args.input_channel / u;
     if (args.c_remainder != 0 && args.input_x_offset % u == 0 && args.output_x_offset % u == 0 &&
         !((unsigned)&args.input_element[0] & 15) && !((unsigned)&args.output_element[0] & 15)) {
         c_div_x += 1;
     }
     args.c_div_x_1 = c_div_x - 1;
 
-    args.padding_h_head = padding[0];
-    args.padding_h_tail = padding[1];
-    args.padding_w_head = padding[2];
-    args.padding_w_tail = padding[3];
-
-    args.stride_x = stride_x;
-    args.stride_y = stride_y;
     // slice
     std::vector<PoolArgsType<feature_t>> m_args(1, args);
     if (runtime_mode == RUNTIME_MODE_MULTI_CORE) {
@@ -173,7 +198,11 @@ void avg_pool_shell(PoolArgsType<feature_t> &args,
     int n_h_head = (args.padding_h_head + args.stride_y - 1) / args.stride_y;
     int n_w_head = (args.padding_w_head + args.stride_x - 1) / args.stride_x;
     int n_h_body = (args.input_height + args.padding_h_head - args.filter_height) / args.stride_y + 1 - n_h_head;
+    if (n_h_body < 0)
+        n_h_body = 0;
     int n_w_body = (args.input_width + args.padding_w_head - args.filter_width) / args.stride_x + 1 - n_w_head;
+    if (n_w_body < 0)
+        n_w_body = 0;
     int n_h_tail = args.output_height - n_h_head - n_h_body;
     int n_w_tail = args.output_width - n_w_head - n_w_body;
     int filter_h = args.filter_height;
@@ -202,9 +231,22 @@ void avg_pool_shell(PoolArgsType<feature_t> &args,
             output_yx = output_ptr;
             input_syx_real = input_ptr_real;
             args.filter_height = filter_h - args.padding_h_head + output_y * args.stride_y;
+            // Fix for filter_size > input_size
+            int filter_height_excess =
+                filter_h - (args.input_height + (args.padding_h_head - output_y * args.stride_y));
+            if (filter_height_excess > 0) {
+                args.filter_height -= filter_height_excess;
+            }
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 new_pool_exponent = -tool::calculate_exponent(args.filter_height * args.filter_width, max_value);
                 args.mac_shift = args.mac_shift + args.pool_exponent - new_pool_exponent;
                 args.pool_exponent = new_pool_exponent;
@@ -262,6 +304,13 @@ void avg_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 new_pool_exponent = -tool::calculate_exponent(args.filter_height * args.filter_width, max_value);
                 args.mac_shift = args.mac_shift + args.pool_exponent - new_pool_exponent;
                 args.pool_exponent = new_pool_exponent;
@@ -319,6 +368,13 @@ void avg_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 new_pool_exponent = -tool::calculate_exponent(args.filter_height * args.filter_width, max_value);
                 args.mac_shift = args.mac_shift + args.pool_exponent - new_pool_exponent;
                 args.pool_exponent = new_pool_exponent;
@@ -378,9 +434,22 @@ void avg_pool_shell(PoolArgsType<feature_t> &args,
             output_yx = output_ptr;
             input_syx_real = input_ptr_real;
             args.filter_height = filter_h - args.padding_h_head + output_y * args.stride_y;
+            // Fix for filter_size > input_size
+            int filter_height_excess =
+                filter_h - (args.input_height + (args.padding_h_head - output_y * args.stride_y));
+            if (filter_height_excess > 0) {
+                args.filter_height -= filter_height_excess;
+            }
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 c_impl_func(buffer, input_syx_real, output_yx, args);
                 output_yx += args.output_x_offset;
             }
@@ -411,6 +480,13 @@ void avg_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 c_impl_func(buffer, input_syx_real, output_yx, args);
                 output_yx += args.output_x_offset;
             }
@@ -443,6 +519,13 @@ void avg_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 c_impl_func(buffer, input_syx_real, output_yx, args);
                 output_yx += args.output_x_offset;
             }
@@ -492,10 +575,15 @@ void max_pool_shell(PoolArgsType<feature_t> &args,
     feature_t *output_ptr = (feature_t *)args.output_element;
     int n_h_head = (args.padding_h_head + args.stride_y - 1) / args.stride_y;
     int n_w_head = (args.padding_w_head + args.stride_x - 1) / args.stride_x;
-    int n_h_tail = (args.padding_h_tail + args.stride_y - 1) / args.stride_y;
-    int n_w_tail = (args.padding_w_tail + args.stride_x - 1) / args.stride_x;
-    int n_h_body = args.output_height - n_h_tail - n_h_head;
-    int n_w_body = args.output_width - n_w_tail - n_w_head;
+    int n_h_body = ((args.input_height + args.padding_h_head - args.filter_height) / args.stride_y + 1) - n_h_head;
+    if (n_h_body < 0)
+        n_h_body = 0;
+    int n_w_body = ((args.input_width + args.padding_w_head - args.filter_width) / args.stride_x + 1) - n_w_head;
+    if (n_w_body < 0)
+        n_w_body = 0;
+    int n_h_tail = args.output_height - n_h_head - n_h_body;
+    int n_w_tail = args.output_width - n_w_head - n_w_body;
+
     int filter_h = args.filter_height;
     int filter_w = args.filter_width;
 
@@ -506,9 +594,22 @@ void max_pool_shell(PoolArgsType<feature_t> &args,
             output_yx = output_ptr;
             input_syx_real = input_ptr_real;
             args.filter_height = filter_h - args.padding_h_head + output_y * args.stride_y;
+            // Fix for filter_size > input_size
+            int filter_height_excess =
+                filter_h - (args.input_height + (args.padding_h_head - output_y * args.stride_y));
+            if (filter_height_excess > 0) {
+                args.filter_height -= filter_height_excess;
+            }
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 i_impl_func(output_yx, input_syx_real, (void *const)&args);
                 output_yx += args.output_x_offset;
             }
@@ -540,6 +641,13 @@ void max_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 i_impl_func(output_yx, input_syx_real, (void *const)&args);
                 output_yx += args.output_x_offset;
             }
@@ -572,6 +680,13 @@ void max_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 i_impl_func(output_yx, input_syx_real, (void *const)&args);
                 output_yx += args.output_x_offset;
             }
@@ -603,9 +718,22 @@ void max_pool_shell(PoolArgsType<feature_t> &args,
             output_yx = output_ptr;
             input_syx_real = input_ptr_real;
             args.filter_height = filter_h - args.padding_h_head + output_y * args.stride_y;
+            // Fix for filter_size > input_size
+            int filter_height_excess =
+                filter_h - (args.input_height + (args.padding_h_head - output_y * args.stride_y));
+            if (filter_height_excess > 0) {
+                args.filter_height -= filter_height_excess;
+            }
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 c_impl_func(input_syx_real, output_yx, args);
                 output_yx += args.output_x_offset;
             }
@@ -636,6 +764,13 @@ void max_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 c_impl_func(input_syx_real, output_yx, args);
                 output_yx += args.output_x_offset;
             }
@@ -668,6 +803,13 @@ void max_pool_shell(PoolArgsType<feature_t> &args,
 
             for (size_t output_x = 0; output_x < n_w_head; output_x++) {
                 args.filter_width = filter_w - args.padding_w_head + output_x * args.stride_x;
+                // Fix for filter_size > input_size
+                int filter_width_excess =
+                    filter_w - (args.input_width + (args.padding_w_head - output_x * args.stride_x));
+                if (filter_width_excess > 0) {
+                    args.filter_width -= filter_width_excess;
+                }
+
                 c_impl_func(input_syx_real, output_yx, args);
                 output_yx += args.output_x_offset;
             }

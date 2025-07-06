@@ -13,7 +13,12 @@
    - 一台 PC（Linux 系统）
 
 .. note::
-   部分开发板目前采用 Type C 接口。请确保使用正确的线缆连接开发板！
+
+   - 部分开发板目前采用 Type C 接口。请确保使用正确的线缆连接开发板！
+   - ESP-DL 也支持 ESP32，但其算子实现采用 C 编写，因此 ESP32 运行速度会远慢于 ESP32-S3 或 ESP32-P4。如有需要，可在项目中自行添加编译配置文件，ESP-DL 的函数接口调用方式完全一致。需要注意的是:
+
+      - 使用 **ESP-PPQ** 量化 **ESP32** 平台模型时，需将 target 设置为 ``c``。
+      - 使用 **ESP-DL** 部署 **ESP32** 平台模型时，项目编译 target 则设置为 ``esp32``。
 
 软件要求
 ---------------------
@@ -52,7 +57,7 @@ ESP-DL 提供了一些开箱即用的 :project:`示例 <examples>`
    idf.py set-target [Soc]
    idf.py flash monitor
 
-使用具体的芯片替换 ``[Soc]``，目前支持 ``esp32s3`` 和 ``esp32p4``。
+使用具体的芯片替换 ``[Soc]``，目前支持 ``esp32s3`` 和 ``esp32p4``。示例暂未添加 ``esp32`` 的模型和编译配置文件。
 
 示例配置
 ^^^^^^^^^^^^
@@ -87,6 +92,8 @@ ESP-DL 必须使用专有格式 ``.espdl`` 进行模型部署，深度学习模�
 - :doc:`如何量化模型 </tutorials/how_to_quantize_model>`
 - :ref:`如何量化 MobileNetV2 <how_to_quantize_mobilenetv2>`
 - :ref:`如何量化 YOLO11n <how_to_quantize_yolo11n>`
+- :ref:`如何量化 YOLO11n-pose <how_to_quantize_yolo11n-pose>`
+- :ref:`如何量化流式模型 <how_to_quantize_streaming_model>`
 
 模型部署
 ----------------
@@ -95,3 +102,4 @@ ESP-DL 提供了一系列 API 来快速加载和运行模型。更多详细信�
 
 - :doc:`如何加载和测试模型 </tutorials/how_to_load_test_profile_model>`
 - :doc:`如何进行模型推理 </tutorials/how_to_run_model>`
+- :ref:`如何部署流式模型 <how_to_deploy_streaming_model>`

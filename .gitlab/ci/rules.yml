@@ -30,6 +30,9 @@
 .patterns-esp-dl_vision: &patterns-esp-dl_vision
   - "esp-dl/vision/**/*"
 
+.patterns-esp-dl_image: &patterns-esp-dl_image
+  - "esp-dl/vision/image/*"
+
 # models folder, in the alphabetic order
 .patterns-model_human_face_recognition: &patterns-model_human_face_recognition
   - "models/human_face_recognition/**/*"
@@ -43,8 +46,14 @@
 .patterns-model_pedestrian_detect: &patterns-model_pedestrian_detect
   - "models/pedestrian_detect/**/*"
 
-.patterns-model_yolo11_detect: &patterns-model_yolo11_detect
-  - "models/yolo11_detect/**/*"
+.patterns-model_coco_detect: &patterns-model_coco_detect
+  - "models/coco_detect/**/*"
+
+.patterns-model_coco_pose: &patterns-model_coco_pose
+  - "models/coco_pose/**/*"
+
+.patterns-model_cat_detect: &patterns-model_cat_detect
+  - "models/cat_detect/**/*"
 
 # examples folder, in the alphabetic order
 .patterns-example_human_face_recognition: &patterns-example_human_face_recognition
@@ -62,6 +71,12 @@
 .patterns-example_yolo11_detect: &patterns-example_yolo11_detect
 - "examples/yolo11_detect/**/*"
 
+.patterns-example_yolo11_pose: &patterns-example_yolo11_pose
+- "examples/yolo11_pose/**/*"
+
+.patterns-example_cat_detect: &patterns-example_cat_detect
+- "examples/cat_detect/**/*"
+
 .patterns-example_how_to_run_model: &patterns-example_how_to_run_model
 - "examples/tutorial/how_to_run_model/**/*"
 
@@ -74,11 +89,18 @@
 .patterns-example_model_in_sdcard: &patterns-example_model_in_sdcard
 - "examples/tutorial/how_to_load_test_profile_model/model_in_sdcard/**/*"
 
+.patterns-example_how_to_run_streaming_model: &patterns-example_how_to_run_streaming_model
+- "examples/tutorial/how_to_run_streaming_model/**/*"
+
 # tool forder
 .patterns-tool_ops_test: &patterns-tool_ops_test
   - "tools/ops_test/config/op_cfg.toml"
   - "tools/ops_test/gen_test_cases.py"
   - "tools/ops_test/ops_cases.py"
+
+.patterns-test_dl_fft: &patterns-test_dl_fft
+  - "tools/dl_fft/**/*"
+
 
 ##############
 # if anchors #
@@ -123,6 +145,16 @@
       changes: *patterns-esp-dl_dl
     - <<: *if-dev-push
       changes: *patterns-esp-dl_fbs_loader
+    - <<: *if-dev-push
+      changes: *patterns-gitlab-ci
+
+# rules for dl image
+.rules:build:dl_image:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-dev-push
+      changes: *patterns-esp-dl_image
     - <<: *if-dev-push
       changes: *patterns-gitlab-ci
 
@@ -184,9 +216,35 @@
     - <<: *if-dev-push
       changes: *patterns-esp-dl
     - <<: *if-dev-push
-      changes: *patterns-model_yolo11_detect
+      changes: *patterns-model_coco_detect
     - <<: *if-dev-push
       changes: *patterns-example_yolo11_detect
+    - <<: *if-dev-push
+      changes: *patterns-gitlab-ci
+
+.rules:build:example_yolo11_pose:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-dev-push
+      changes: *patterns-esp-dl
+    - <<: *if-dev-push
+      changes: *patterns-model_coco_pose
+    - <<: *if-dev-push
+      changes: *patterns-example_yolo11_pose
+    - <<: *if-dev-push
+      changes: *patterns-gitlab-ci
+
+.rules:build:example_cat_detect:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-dev-push
+      changes: *patterns-esp-dl
+    - <<: *if-dev-push
+      changes: *patterns-model_cat_detect
+    - <<: *if-dev-push
+      changes: *patterns-example_cat_detect
     - <<: *if-dev-push
       changes: *patterns-gitlab-ci
 
@@ -223,6 +281,24 @@
     - <<: *if-label-build
     - <<: *if-dev-push
       changes: *patterns-example_model_in_sdcard
+    - <<: *if-dev-push
+      changes: *patterns-gitlab-ci
+
+.rules:build:example_how_to_run_streaming_model:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-dev-push
+      changes: *patterns-example_how_to_run_streaming_model
+    - <<: *if-dev-push
+      changes: *patterns-gitlab-ci
+
+.rules:build:test_dl_fft:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-dev-push
+      changes: *patterns-test_dl_fft
     - <<: *if-dev-push
       changes: *patterns-gitlab-ci
 

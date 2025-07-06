@@ -143,12 +143,12 @@ typedef enum {
  * @brief memory info
  *
  */
-class mem_info {
-public:
+typedef struct mem_info_s {
     size_t psram;    /*!< PSRAM usage */
     size_t internal; /*!< internal RAM usage */
     size_t flash;    /*!< FLASH usage */
 
+    //ToDo: check, if mem_info is needed
     // Default constructor
     mem_info() : psram(0), internal(0), flash(0) {}
 
@@ -157,28 +157,30 @@ public:
         : psram(psram), internal(internal), flash(flash) {}
 
     mem_info operator+(const mem_info &other) const
+    //To Do up to here
+    mem_info_s operator+(const mem_info_s &other) const
     {
-        return mem_info(psram + other.psram, internal + other.internal, flash + other.flash);
+        return {psram + other.psram, internal + other.internal, flash + other.flash};
     }
-    mem_info operator-(const mem_info &other) const
+    mem_info_s operator-(const mem_info_s &other) const
     {
-        return mem_info(psram - other.psram, internal - other.internal, flash - other.flash);
+        return {psram - other.psram, internal - other.internal, flash - other.flash};
     }
-    mem_info &operator+=(const mem_info &other)
+    mem_info_s &operator+=(const mem_info_s &other)
     {
         psram += other.psram;
         internal += other.internal;
         flash += other.flash;
         return *this;
     }
-    mem_info &operator-=(const mem_info &other)
+    mem_info_s &operator-=(const mem_info_s &other)
     {
         psram -= other.psram;
         internal -= other.internal;
         flash -= other.flash;
         return *this;
     }
-};
+} mem_info_t;
 
 /**
  * @brief module info

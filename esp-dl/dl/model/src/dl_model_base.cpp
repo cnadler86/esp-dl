@@ -10,7 +10,7 @@ static const char *TAG = "dl::Model";
 
 namespace dl {
 
-Model::Model(const char *name,
+Model::Model(const char *rodata_address_or_partition_label_or_path,
              fbs::model_location_type_t location,
              int max_internal_size,
              memory_manager_t mm_type,
@@ -21,14 +21,14 @@ Model::Model(const char *name,
     m_internal_size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     m_psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     m_model_context = new ModelContext();
-    if (this->load(name, location, key, param_copy) == ESP_OK) {
+    if (this->load(rodata_address_or_partition_label_or_path, location, key, param_copy) == ESP_OK) {
         this->build(max_internal_size, mm_type);
     }
     m_internal_size -= heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     m_psram_size -= heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
 }
 
-Model::Model(const char *name,
+Model::Model(const char *rodata_address_or_partition_label_or_path,
              int model_index,
              fbs::model_location_type_t location,
              int max_internal_size,
@@ -40,14 +40,14 @@ Model::Model(const char *name,
     m_internal_size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     m_psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     m_model_context = new ModelContext();
-    if (this->load(name, location, model_index, key, param_copy) == ESP_OK) {
+    if (this->load(rodata_address_or_partition_label_or_path, location, model_index, key, param_copy) == ESP_OK) {
         this->build(max_internal_size, mm_type);
     }
     m_internal_size -= heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     m_psram_size -= heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
 }
 
-Model::Model(const char *name,
+Model::Model(const char *rodata_address_or_partition_label_or_path,
              const char *model_name,
              fbs::model_location_type_t location,
              int max_internal_size,
@@ -59,7 +59,7 @@ Model::Model(const char *name,
     m_internal_size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     m_psram_size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     m_model_context = new ModelContext();
-    if (this->load(name, location, model_name, key, param_copy) == ESP_OK) {
+    if (this->load(rodata_address_or_partition_label_or_path, location, model_name, key, param_copy) == ESP_OK) {
         this->build(max_internal_size, mm_type);
     }
     m_internal_size -= heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
@@ -305,6 +305,25 @@ std::map<std::string, TensorBase *> &Model::get_inputs()
     return m_inputs;
 }
 
+TensorBase *Model::get_input()
+{
+    assert(m_inputs.size() == 1);
+    return m_inputs.begin()->second;
+}
+
+TensorBase *Model::get_input(const std::string &name)
+{
+    if (name.empty()) {
+        return get_input();
+    }
+    auto it = m_inputs.find(name);
+    if (it == m_inputs.end()) {
+        ESP_LOGE(TAG, "%s not found in inputs.", name.c_str());
+        return nullptr;
+    }
+    return it->second;
+}
+
 TensorBase *Model::get_intermediate(const std::string &name)
 {
     if (name.empty()) {
@@ -317,6 +336,33 @@ TensorBase *Model::get_intermediate(const std::string &name)
 std::map<std::string, TensorBase *> &Model::get_outputs()
 {
     return m_outputs;
+}
+
+TensorBase *Model::get_output()
+{
+    assert(m_outputs.size() == 1);
+    return m_outputs.begin()->second;
+}
+
+TensorBase *Model::get_output(const std::string &name)
+{
+    if (name.empty()) {
+        return get_output();
+    }
+    auto it = m_outputs.find(name);
+    if (it == m_outputs.end()) {
+        ESP_LOGE(TAG, "%s not found in outputs.", name.c_str());
+        return nullptr;
+    }
+    return it->second;
+}
+
+std::string Model::get_metadata_prop(const std::string &key)
+{
+    if (!m_fbs_model) {
+        return "";
+    }
+    return m_fbs_model->get_model_metadata_prop(key);
 }
 
 void Model::print()
@@ -354,7 +400,7 @@ esp_err_t Model::test()
     printf("\n");
     std::vector<TensorBase *> test_tensors_cache;
     m_fbs_model->load_map();
-    std::map<std::string, TensorBase *> graph_inputs = get_inputs();
+    std::map<std::string, TensorBase *> &graph_inputs = get_inputs();
     for (auto graph_inputs_iter = graph_inputs.begin(); graph_inputs_iter != graph_inputs.end(); graph_inputs_iter++) {
         std::string input_name = graph_inputs_iter->first;
         TensorBase *test_input = m_fbs_model->get_test_input_tensor(input_name);
@@ -428,9 +474,9 @@ esp_err_t Model::test()
     return ESP_OK;
 }
 
-std::map<std::string, mem_info> Model::get_memory_info()
+std::map<std::string, mem_info_t> Model::get_memory_info()
 {
-    std::map<std::string, mem_info> info;
+    std::map<std::string, mem_info_t> info;
 
     size_t psram_rodata_size;
 
@@ -513,7 +559,7 @@ static void print_table_name(const std::string &table_name, const std::string &s
     ESP_LOGI(TAG, "%s", sep.c_str());
 }
 
-static void print_memory_info(const std::map<std::string, mem_info> &info)
+static void print_memory_info(const std::map<std::string, mem_info_t> &info)
 {
     std::string table_name = "memory summary";
     std::vector<std::string> row_headers = {"fbs_model", "parameter", "parameter_copy", "variable", "others", "total"};
@@ -521,13 +567,13 @@ static void print_memory_info(const std::map<std::string, mem_info> &info)
 
     // get_col_width
     size_t col0_width = strlen("parameter_copy");
-    std::string sub_prefix = "└── ";
+    std::string sub_prefix = " -- ";
     auto get_fmt_size = [&sub_prefix](size_t size, bool sub_header) -> std::string {
         std::string fmt_size = std::format("{:<.2f}KB", size / 1024.f);
         if (sub_header) {
             fmt_size = (fmt_size == "0.00KB") ? "" : sub_prefix + fmt_size;
         } else if (fmt_size == "0.00KB") {
-            fmt_size = "─";
+            fmt_size = "";
         }
         return fmt_size;
     };
