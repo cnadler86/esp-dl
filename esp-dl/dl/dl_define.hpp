@@ -147,17 +147,6 @@ typedef struct mem_info_s {
     size_t psram;    /*!< PSRAM usage */
     size_t internal; /*!< internal RAM usage */
     size_t flash;    /*!< FLASH usage */
-
-    //ToDo: check, if mem_info is needed
-    // Default constructor
-    mem_info() : psram(0), internal(0), flash(0) {}
-
-    // Constructor with three arguments
-    mem_info(size_t psram, size_t internal, size_t flash)
-        : psram(psram), internal(internal), flash(flash) {}
-
-    mem_info operator+(const mem_info &other) const
-    //To Do up to here
     mem_info_s operator+(const mem_info_s &other) const
     {
         return {psram + other.psram, internal + other.internal, flash + other.flash};
