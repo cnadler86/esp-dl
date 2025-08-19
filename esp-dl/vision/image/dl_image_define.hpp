@@ -39,7 +39,9 @@ typedef enum {
     DL_IMAGE_PIX_TYPE_GRAY,
     DL_IMAGE_PIX_TYPE_GRAY_QINT8,
     DL_IMAGE_PIX_TYPE_GRAY_QINT16,
-    DL_IMAGE_PIX_TYPE_RGB565
+    DL_IMAGE_PIX_TYPE_RGB565,
+    DL_IMAGE_PIX_TYPE_UNDEFINED //This here will give a merge conflict, if enum changes.
+    // Remember to change the definitions in micropython tom table
 } pix_type_t;
 
 inline std::string pix_type_to_str(pix_type_t type)
