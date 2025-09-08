@@ -13,6 +13,7 @@ set(src_dirs        ./dl/tool/src
                     ./vision/classification
                     ./audio/common
                     ./audio/speech_features
+                    ./py/src
                     )
 
 set(include_dirs    ./dl
@@ -30,6 +31,7 @@ set(include_dirs    ./dl
                     ./vision/classification
                     ./audio/common
                     ./audio/speech_features
+                    ./py/include
                     )
 
 if(CONFIG_IDF_TARGET_ESP32)
