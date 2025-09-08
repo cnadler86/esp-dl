@@ -1,6 +1,10 @@
 #include "fbs_loader.hpp"
 #include "mbedtls/aes.h"
 
+extern "C" {
+    #include "mpfile.h"
+}
+
 static const char *TAG = "FbsLoader";
 
 namespace fbs {
@@ -102,14 +106,14 @@ fbs_file_format_t get_model_format(const char *fbs_buf, model_location_type_t mo
         memcpy(str, fbs_buf, 4);
         str[4] = '\0';
     } else {
-        FILE *f = fopen(fbs_buf, "rb");
+        mp_file_t *f = mp_open(fbs_buf, "rb");
         if (!f) {
             ESP_LOGE(TAG, "Failed to open %s.", fbs_buf);
             return FBS_FILE_FORMAT_UNK;
         }
-        fread(str, 4, 1, f);
+        mp_readinto(f, str, 4);
         str[4] = '\0';
-        fclose(f);
+        mp_close(f);
     }
 
     if (strcmp(str, "EDL1") == 0) {
@@ -140,22 +144,22 @@ esp_err_t get_model_offset_by_index(const char *fbs_buf,
         offset = header[2 + index * 3];
         return ESP_OK;
     } else {
-        FILE *f = fopen(fbs_buf, "rb");
+        mp_file_t *f = mp_open(fbs_buf, "rb");
         if (!f) {
             ESP_LOGE(TAG, "Failed to open %s.", fbs_buf);
             return ESP_FAIL;
         }
-        fseek(f, 4, SEEK_SET);
+        mp_seek(f, 4, SEEK_SET);
         uint32_t model_num;
-        fread(&model_num, 4, 1, f);
+        mp_readinto(f, &model_num, 4);
         if (index >= model_num) {
             ESP_LOGE(TAG, "The model index is out of range.");
-            fclose(f);
+            mp_close(f);
             return ESP_FAIL;
         }
-        fseek(f, 4 * (2 + index * 3), SEEK_SET);
-        fread(&offset, 4, 1, f);
-        fclose(f);
+        mp_seek(f, 4 * (2 + index * 3), SEEK_SET);
+        mp_readinto(f, &offset, 4);
+        mp_close(f);
         return ESP_OK;
     }
 }
@@ -181,31 +185,31 @@ esp_err_t get_model_offset_by_name(const char *fbs_buf,
         ESP_LOGE(TAG, "Model %s is not found.", name);
         return ESP_FAIL;
     } else {
-        FILE *f = fopen(fbs_buf, "rb");
+        mp_file_t *f = mp_open(fbs_buf, "rb");
         if (!f) {
             ESP_LOGE(TAG, "Failed to open %s.", fbs_buf);
             return ESP_FAIL;
         }
-        fseek(f, 4, SEEK_SET);
+        mp_seek(f, 4, SEEK_SET);
         uint32_t model_num;
-        fread(&model_num, 4, 1, f);
+        mp_readinto(f, &model_num, 4);
         uint32_t name_offset, name_length;
         for (int i = 0; i < model_num; i++) {
-            fseek(f, 4 * (2 + 3 * i + 1), SEEK_SET);
-            fread(&name_offset, 4, 1, f);
-            fread(&name_length, 4, 1, f);
+            mp_seek(f, 4 * (2 + 3 * i + 1), SEEK_SET);
+            mp_readinto(f, &name_offset, 4);
+            mp_readinto(f, &name_length, 4);
             std::string model_name(name_length, '\0');
-            fseek(f, name_offset, SEEK_SET);
-            fread(model_name.data(), name_length, 1, f);
+            mp_seek(f, name_offset, SEEK_SET);
+            mp_readinto(f, model_name.data(), name_length);
             if (model_name == std::string(name)) {
-                fseek(f, 4 * (2 + 3 * i), SEEK_SET);
-                fread(&offset, 4, 1, f);
-                fclose(f);
+                mp_seek(f, 4 * (2 + 3 * i), SEEK_SET);
+                mp_readinto(f, &offset, 4);
+                mp_close(f);
                 return ESP_OK;
             }
         }
         ESP_LOGE(TAG, "Model %s is not found.", name);
-        fclose(f);
+        mp_close(f);
         return ESP_FAIL;
     }
 }
@@ -235,14 +239,14 @@ FbsModel *create_fbs_model(const char *fbs_buf,
             model_buf += 16;
         }
     } else {
-        FILE *f = fopen(fbs_buf, "rb");
+        mp_file_t *f = mp_open(fbs_buf, "rb");
         if (!f) {
             ESP_LOGE(TAG, "Failed to open %s.", fbs_buf);
             return nullptr;
         }
-        fseek(f, offset + 4, SEEK_SET);
-        fread(&mode, 4, 1, f);
-        fread(&size, 4, 1, f);
+        mp_seek(f, offset + 4, SEEK_SET);
+        mp_readinto(f, &mode, 4);
+        mp_readinto(f, &size, 4);
         model_buf = (char *)dl::tool::malloc_aligned(16, size, MALLOC_CAP_DEFAULT);
         if (!model_buf) {
             ESP_LOGE(
@@ -251,12 +255,14 @@ FbsModel *create_fbs_model(const char *fbs_buf,
                 size / 1024.f,
                 heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024.f,
                 heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024.f);
+            mp_close(f);
             return nullptr;
         }
         if (format == FBS_FILE_FORMAT_EDL2 || format == FBS_FILE_FORMAT_PDL2) {
-            fseek(f, 4, SEEK_CUR);
+            mp_seek(f, 4, SEEK_CUR);
         }
-        fread(model_buf, size, 1, f);
+        mp_readinto(f, model_buf, size);
+        mp_close(f);
     }
 
     assert(mode == 0 || mode == 1);
@@ -433,14 +439,14 @@ int FbsLoader::get_model_num()
             uint32_t *header = (uint32_t *)m_fbs_buf;
             model_num = header[1];
         } else {
-            FILE *f = fopen((const char *)m_fbs_buf, "rb");
+            mp_file_t *f = mp_open((const char *)m_fbs_buf, "rb");
             if (!f) {
                 ESP_LOGE(TAG, "Failed to open %s.", (const char *)m_fbs_buf);
                 return 0;
             }
-            fseek(f, 4, SEEK_SET);
-            fread(&model_num, 4, 1, f);
-            fclose(f);
+            mp_seek(f, 4, SEEK_SET);
+            mp_readinto(f, &model_num, 4);
+            mp_close(f);
         }
         return model_num;
     } else if (format == FBS_FILE_FORMAT_EDL1 || format == FBS_FILE_FORMAT_EDL2) {
@@ -474,25 +480,25 @@ void FbsLoader::list_models()
                 ESP_LOGI(TAG, "model name: %s, index:%d", name.c_str(), i);
             }
         } else {
-            FILE *f = fopen((const char *)m_fbs_buf, "rb");
+            mp_file_t *f = mp_open((const char *)m_fbs_buf, "rb");
             if (!f) {
                 ESP_LOGE(TAG, "Failed to open %s.", (const char *)m_fbs_buf);
                 return;
             }
-            fseek(f, 4, SEEK_SET);
+            mp_seek(f, 4, SEEK_SET);
             uint32_t model_num;
-            fread(&model_num, 4, 1, f);
+            mp_readinto(f, &model_num, 4);
             uint32_t name_offset, name_length;
             for (int i = 0; i < model_num; i++) {
-                fseek(f, 4 * (2 + 3 * i + 1), SEEK_SET);
-                fread(&name_offset, 4, 1, f);
-                fread(&name_length, 4, 1, f);
+                mp_seek(f, 4 * (2 + 3 * i + 1), SEEK_SET);
+                mp_readinto(f, &name_offset, 4);
+                mp_readinto(f, &name_length, 4);
                 std::string name(name_length, '\0');
-                fseek(f, name_offset, SEEK_SET);
-                fread(name.data(), name_length, 1, f);
+                mp_seek(f, name_offset, SEEK_SET);
+                mp_readinto(f, name.data(), name_length);
                 ESP_LOGI(TAG, "model name: %s, index:%d", name.c_str(), i);
             }
-            fclose(f);
+            mp_close(f);
         }
     } else if (format == FBS_FILE_FORMAT_EDL1 || format == FBS_FILE_FORMAT_EDL2) {
         ESP_LOGI(TAG, "There is only one model in the flatbuffers without model name.");
