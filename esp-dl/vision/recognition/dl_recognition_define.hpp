@@ -1,23 +1,44 @@
 #pragma once
 #include <cstdint>
+#include <cstring>
 
 namespace dl {
 namespace recognition {
+
+#define MAX_NAME_LENGTH 32
 typedef struct {
     uint16_t num_feats_total;
     uint16_t num_feats_valid;
     uint16_t feat_len;
 } database_meta;
 
-typedef struct {
+struct database_feat {
     uint16_t id;
     float *feat;
-} database_feat;
+    char name[MAX_NAME_LENGTH];
 
-typedef struct {
+    database_feat() : id(0), feat(nullptr) {
+        name[0] = '\0';
+    }
+    
+    database_feat(uint16_t _id, float *_feat, const char *_name = "") : id(_id), feat(_feat) {
+        strlcpy(name, _name, MAX_NAME_LENGTH);
+    }
+};
+
+struct result_t {
     uint16_t id;
     float similarity;
-} result_t;
+    char name[MAX_NAME_LENGTH];
+
+    result_t() : id(0), similarity(0.0f) {
+        name[0] = '\0';
+    }
+    
+    result_t(uint16_t _id, float _sim, const char *_name = "") : id(_id), similarity(_sim) {
+        strlcpy(name, _name, MAX_NAME_LENGTH);
+    }
+};
 
 } // namespace recognition
 } // namespace dl

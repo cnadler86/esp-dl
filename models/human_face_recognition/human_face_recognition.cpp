@@ -94,14 +94,14 @@ std::vector<dl::recognition::result_t> HumanFaceRecognizer::recognize(const dl::
     }
 }
 
-esp_err_t HumanFaceRecognizer::enroll(const dl::image::img_t &img, const std::list<dl::detect::result_t> &detect_res)
+esp_err_t HumanFaceRecognizer::enroll(const dl::image::img_t &img, const std::list<dl::detect::result_t> &detect_res, const char *name, uint16_t *new_id)
 {
     if (detect_res.empty()) {
         ESP_LOGW("HumanFaceRecognizer", "Failed to enroll. No face detected.");
         return ESP_FAIL;
     } else if (detect_res.size() == 1) {
         auto feat = m_feat.run(img, detect_res.back().keypoint);
-        return m_db.enroll_feat(feat);
+        return m_db.enroll_feat(feat, name, new_id);
     } else {
         auto max_detect_res =
             std::max_element(detect_res.begin(),
@@ -110,7 +110,7 @@ esp_err_t HumanFaceRecognizer::enroll(const dl::image::img_t &img, const std::li
                                  return a.box_area() > b.box_area();
                              });
         auto feat = m_feat.run(img, max_detect_res->keypoint);
-        return m_db.enroll_feat(feat);
+        return m_db.enroll_feat(feat, name, new_id);
     }
 }
 

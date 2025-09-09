@@ -38,9 +38,12 @@ public:
 
     std::vector<dl::recognition::result_t> recognize(const dl::image::img_t &img,
                                                      const std::list<dl::detect::result_t> &detect_res);
-    esp_err_t enroll(const dl::image::img_t &img, const std::list<dl::detect::result_t> &detect_res);
+    esp_err_t enroll(const dl::image::img_t &img, const std::list<dl::detect::result_t> &detect_res, const char *name, uint16_t *new_id);
     esp_err_t clear_all_feats();
     esp_err_t delete_feat(uint16_t id);
     esp_err_t delete_last_feat();
     int get_num_feats();
+    void print() {
+        m_db.print();
+    }
 };

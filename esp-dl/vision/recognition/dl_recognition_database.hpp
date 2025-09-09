@@ -13,10 +13,11 @@ public:
     DataBase(const char *db_path, int feat_len);
     virtual ~DataBase();
     esp_err_t clear_all_feats();
-    esp_err_t enroll_feat(TensorBase *feat);
+    esp_err_t enroll_feat(TensorBase *feat, const char *name, uint16_t *new_id);
     esp_err_t delete_feat(uint16_t id);
     esp_err_t delete_last_feat();
     std::vector<result_t> query_feat(TensorBase *feat, float thr, int top_k);
+    const char* get_name(uint16_t id);
     void print();
     int get_num_feats() { return m_meta.num_feats_valid; }
 
